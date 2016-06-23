@@ -1,5 +1,13 @@
+def log(msg)
+  $stderr.puts "[#{Time.now.strftime('%H:%M:%S.%L')}] #{msg}"
+end
+
+log("root")
+
 require 'ffi/llvm'
 require 'singleton'
+
+log("required llvm")
 
 include FFI::LLVM
 
@@ -17,7 +25,7 @@ end
 class Int32Type < Type
   include Singleton
 
-  def codegen(mod:)
+  def gen_code(mod:)
     LLVMInt32Type()
   end
 end
@@ -25,108 +33,125 @@ end
 class StringType < Type
   include Singleton
 
-  def codegen(mod:)
+  def gen_code(mod:)
     LLVMPointerType(LLVMInt8Type(), 0)
   end
 end
 
 FunParam = Struct.new(:name, :type)
 
-$functions = {}
-
 ### top-level
 
 FunDecl = Struct.new(:name, :arg_types, :is_varargs, :return_type) do
-  def codegen(mod:)
-    arg_types_llvm = to_llvm(arg_types.map { |at| at.codegen(mod: mod) })
-    return_type_llvm = return_type.codegen(mod: mod)
+  def gen_code(mod:, env:)
+  end
+
+  def gen_fun_decls(mod:, env:)
+    arg_types_llvm = to_llvm(arg_types.map { |at| at.gen_code(mod: mod) })
+    return_type_llvm = return_type.gen_code(mod: mod)
     is_varargs_llvm = is_varargs ? 1 : 0
 
+    if env.key?(name)
+      raise "Function already declared: #{name}"
+    end
+
     type = LLVMFunctionType(return_type_llvm, arg_types_llvm, arg_types.size, is_varargs_llvm)
-    function = LLVMAddFunction(mod, name, type)
-    # FIXME: eeeewwww
-    $functions[name] = function
-    function
+    LLVMAddFunction(mod, name, type).tap { |f| env[name] = f }
   end
 end
 
-FunDef = Struct.new(:name, :params, :ret_type, :body) do
-  def codegen(mod:)
-    params_ptr = to_llvm(params.map { |pa| pa.type.codegen(mod: mod) })
+FunDef = Struct.new(:name, :params, :return_type, :body) do
+  def gen_code(mod:, env:)
+    params_ptr = to_llvm(params.map { |pa| pa.type.gen_code(mod: mod) })
 
     function_type = LLVMFunctionType(
-      ret_type.codegen(mod: mod),
+      return_type.gen_code(mod: mod),
       params_ptr,
       params.size,
       0,
     )
 
-    if $functions.key?(name)
-      raise "Function already defined: #{name}"
-    end
-    function = LLVMAddFunction(mod, name, function_type)
-    # FIXME: eeeewwww
-    $functions[name] = function
-
-    env = {}
-    params.each_with_index do |par, i|
-      llvm_param = LLVMGetParam(function, i)
-      LLVMSetValueName(llvm_param, par.name)
-      env[par.name] = llvm_param
-    end
+    function = env.fetch(name)
 
     entry = LLVMAppendBasicBlock(function, "entry")
     builder = LLVMCreateBuilder()
     LLVMPositionBuilderAtEnd(builder, entry)
 
-    tmp = body.codegen(mod: mod, function: function, builder: builder, env: env)
+    new_env = env.dup
+    params.each_with_index do |par, i|
+      llvm_param = LLVMGetParam(function, i)
+      new_env[par.name] = llvm_param
+    end
+
+    tmp = body.gen_code(mod: mod, function: function, builder: builder, env: new_env)
 
     LLVMBuildRet(builder, tmp)
+  end
+
+  def gen_fun_decls(mod:, env:)
+    arg_types_llvm = to_llvm(params.map { |pa| pa.type.gen_code(mod: mod) })
+    return_type_llvm = return_type.gen_code(mod: mod)
+    is_varargs_llvm = 0
+
+    if env.key?(name)
+      raise "Function already defined: #{name}"
+    end
+
+    type = LLVMFunctionType(return_type_llvm, arg_types_llvm, params.size, is_varargs_llvm)
+    function = LLVMAddFunction(mod, name, type)
+    env[name] = function
+
+    params.each_with_index do |par, i|
+      llvm_param = LLVMGetParam(function, i)
+      LLVMSetValueName(llvm_param, par.name)
+    end
+
+    function
   end
 end
 
 ### expressions
 
 Const = Struct.new(:value, :type) do
-  def codegen(mod:, function:, builder:, env:)
-    LLVMConstInt(type.codegen(mod: mod), value, 0)
+  def gen_code(mod:, function:, builder:, env:)
+    LLVMConstInt(type.gen_code(mod: mod), value, 0)
   end
 end
 
 Str = Struct.new(:value) do
-  def codegen(mod:, function:, builder:, env:)
+  def gen_code(mod:, function:, builder:, env:)
     LLVMBuildGlobalStringPtr(builder, value, 'str')
   end
 end
 
 VarRef = Struct.new(:name) do
-  def codegen(mod:, function:, builder:, env:)
+  def gen_code(mod:, function:, builder:, env:)
     env.fetch(name)
   end
 end
 
 OpAdd = Struct.new(:lhs, :rhs) do
-  def codegen(mod:, function:, builder:, env:)
+  def gen_code(mod:, function:, builder:, env:)
     LLVMBuildAdd(
       builder,
-      lhs.codegen(mod: mod, function: function, builder: builder, env: env),
-      rhs.codegen(mod: mod, function: function, builder: builder, env: env),
+      lhs.gen_code(mod: mod, function: function, builder: builder, env: env),
+      rhs.gen_code(mod: mod, function: function, builder: builder, env: env),
       "op_add_res",
     )
   end
 end
 
 FunCall = Struct.new(:name, :args) do
-  def codegen(mod:, function:, builder:, env:)
-    args_ptr = to_llvm(args.map { |a| a.codegen(mod: mod, function: function, builder: builder, env: env) })
+  def gen_code(mod:, function:, builder:, env:)
+    args_ptr = to_llvm(args.map { |a| a.gen_code(mod: mod, function: function, builder: builder, env: env) })
 
-    LLVMBuildCall(builder, $functions.fetch(name), args_ptr, args.size, "call_#{name}_res")
+    LLVMBuildCall(builder, env.fetch(name), args_ptr, args.size, "call_#{name}_res")
   end
 end
 
 If = Struct.new(:condition, :true_clause, :false_clause) do
-  def codegen(mod:, function:, builder:, env:)
-    var_condition = condition.codegen(mod: mod, function: function, builder: builder, env: env)
+  def gen_code(mod:, function:, builder:, env:)
+    var_condition = condition.gen_code(mod: mod, function: function, builder: builder, env: env)
 
     block_true = LLVMAppendBasicBlock(function, "if_true")
     block_false = LLVMAppendBasicBlock(function, "if_false")
@@ -138,11 +163,11 @@ If = Struct.new(:condition, :true_clause, :false_clause) do
     LLVMBuildCondBr(builder, cond, block_true, block_false)
 
     LLVMPositionBuilderAtEnd(builder, block_true)
-    res_true = true_clause.codegen(mod: mod, function: function, builder: builder, env: env)
+    res_true = true_clause.gen_code(mod: mod, function: function, builder: builder, env: env)
     LLVMBuildBr(builder, block_end)
 
     LLVMPositionBuilderAtEnd(builder, block_false)
-    res_false = true_clause.codegen(mod: mod, function: function, builder: builder, env: env)
+    res_false = true_clause.gen_code(mod: mod, function: function, builder: builder, env: env)
     LLVMBuildBr(builder, block_end)
 
     LLVMPositionBuilderAtEnd(builder, block_end)
@@ -158,12 +183,41 @@ end
 
 #############################################################################
 
+def gen_fun_decls(arr, mod, env)
+  arr.each { |e| e.gen_fun_decls(mod: mod, env: env) }
+end
+
+def gen_code(arr, mod, env)
+  arr.each { |e| e.gen_code(mod: mod, env: env) }
+end
+
+#############################################################################
+
 things = [
   FunDecl.new(
     "printf",
     [StringType.instance],
     true,
     Int32Type.instance,
+  ),
+  FunDef.new(
+    "main",
+    [],
+    Int32Type.instance,
+    FunCall.new(
+      "printf",
+      [
+        Str.new("It’s %u!\n"),
+        FunCall.new(
+          "sum",
+          [
+            Const.new(100, Int32Type.instance),
+            Const.new(20, Int32Type.instance),
+            Const.new(3, Int32Type.instance),
+          ],
+        ),
+      ],
+    ),
   ),
   FunDef.new(
     "sum",
@@ -188,31 +242,19 @@ things = [
       ),
     )
   ),
-  FunDef.new(
-    "main",
-    [],
-    Int32Type.instance,
-    FunCall.new(
-      "printf",
-      [
-        Str.new("It’s %u!\n"),
-        FunCall.new(
-          "sum",
-          [
-            Const.new(100, Int32Type.instance),
-            Const.new(20, Int32Type.instance),
-            Const.new(3, Int32Type.instance),
-          ],
-        ),
-      ],
-    ),
-  ),
 ]
 
 #############################################################################
 
+log("defined all")
+log("running")
+
 mod = LLVMModuleCreateWithName("giraffe")
-things.each { |t| t.codegen(mod: mod) }
+env = {}
+fun_decls = gen_fun_decls(things, mod, env)
+gen_code(things, mod, env)
+
+log("done running")
 
 LLVMVerifyModule(mod, :llvm_abort_process_action, nil)
 puts LLVMPrintModuleToString(mod)
