@@ -1,0 +1,19 @@
+PATH
+  remote: ./ffi-llvm
+  specs:
+    ffi-llvm (0.1.0)
+      ffi (~> 1.0)
+
+GEM
+  remote: https://rubygems.org/
+  specs:
+    ffi (1.9.10)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  ffi-llvm!
+
+BUNDLED WITH
+   1.12.5
