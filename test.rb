@@ -135,8 +135,7 @@ FunDef = Struct.new(:name, :params, :return_type, :body) do
       new_env[par.name] = par
     end
 
-    res = body.last.typecheck(mod: mod, env: new_env) == Int32Type.instance
-    # FIXME: do something with res
+    raise 'last expr of function is not int32' unless body.last.typecheck(mod: mod, env: new_env) == Int32Type.instance
   end
 end
 
@@ -206,10 +205,7 @@ FunCall = Struct.new(:name, :args) do
   end
 
   def typecheck(mod:, env:)
-    # FIXME: wrong -- don’t do llvm types at this point
-    # A better idea is to let gen_fun_decls generate decl structs,
-    # which are then codegen’d to somethign else
-    # env.fetch(name).return_type
+    env.fetch(name).return_type
   end
 end
 
