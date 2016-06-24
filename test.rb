@@ -19,6 +19,33 @@ end
 
 ### helper
 
+class Env
+  def initialize(parent: nil, contents: {})
+    @parent = parent
+    @contents = contents
+  end
+
+  def key?(key)
+    @contents.key?(key) || (@parent && @parent.key?(key))
+  end
+
+  def fetch(key, expr: nil)
+    if @parent
+      @contents.fetch(key) { @parent.fetch(key, expr: expr) }
+    else
+      @contents.fetch(key) { raise NameError.new(key, expr) }
+    end
+  end
+
+  def []=(key, value)
+    @contents[key] = value
+  end
+
+  def push(contents = {})
+    self.class.new(parent: self, contents: contents)
+  end
+end
+
 class Type
 end
 
@@ -40,11 +67,21 @@ end
 
 FunParam = Struct.new(:name, :type)
 
+module Gen
+  def gen_code(mod:, function:, builder:, env:)
+  end
+
+  def gen_fun_defs(mod:, env:)
+  end
+
+  def gen_fun_decls(mod:, env:)
+  end
+end
+
 ### top-level
 
 FunDecl = Struct.new(:name, :arg_types, :is_varargs, :return_type) do
-  def gen_code(mod:, env:)
-  end
+  include Gen
 
   def gen_fun_decls(mod:, env:)
     arg_types_llvm = to_llvm(arg_types.map { |at| at.gen_code(mod: mod) })
@@ -61,7 +98,9 @@ FunDecl = Struct.new(:name, :arg_types, :is_varargs, :return_type) do
 end
 
 FunDef = Struct.new(:name, :params, :return_type, :body) do
-  def gen_code(mod:, env:)
+  include Gen
+
+  def gen_fun_defs(mod:, env:)
     params_ptr = to_llvm(params.map { |pa| pa.type.gen_code(mod: mod) })
 
     function_type = LLVMFunctionType(
@@ -77,7 +116,7 @@ FunDef = Struct.new(:name, :params, :return_type, :body) do
     builder = LLVMCreateBuilder()
     LLVMPositionBuilderAtEnd(builder, entry)
 
-    new_env = env.dup
+    new_env = env.push
     params.each_with_index do |par, i|
       llvm_param = LLVMGetParam(function, i)
       new_env[par.name] = llvm_param
@@ -113,24 +152,32 @@ end
 ### expressions
 
 Const = Struct.new(:value, :type) do
+  include Gen
+
   def gen_code(mod:, function:, builder:, env:)
     LLVMConstInt(type.gen_code(mod: mod), value, 0)
   end
 end
 
 Str = Struct.new(:value) do
+  include Gen
+
   def gen_code(mod:, function:, builder:, env:)
     LLVMBuildGlobalStringPtr(builder, value, 'str')
   end
 end
 
 VarRef = Struct.new(:name) do
+  include Gen
+
   def gen_code(mod:, function:, builder:, env:)
     env.fetch(name)
   end
 end
 
 OpAdd = Struct.new(:lhs, :rhs) do
+  include Gen
+
   def gen_code(mod:, function:, builder:, env:)
     LLVMBuildAdd(
       builder,
@@ -142,6 +189,8 @@ OpAdd = Struct.new(:lhs, :rhs) do
 end
 
 FunCall = Struct.new(:name, :args) do
+  include Gen
+
   def gen_code(mod:, function:, builder:, env:)
     args_ptr = to_llvm(args.map { |a| a.gen_code(mod: mod, function: function, builder: builder, env: env) })
 
@@ -150,6 +199,8 @@ FunCall = Struct.new(:name, :args) do
 end
 
 If = Struct.new(:condition, :true_clause, :false_clause) do
+  include Gen
+
   def gen_code(mod:, function:, builder:, env:)
     var_condition = condition.gen_code(mod: mod, function: function, builder: builder, env: env)
 
@@ -187,8 +238,27 @@ def gen_fun_decls(arr, mod, env)
   arr.each { |e| e.gen_fun_decls(mod: mod, env: env) }
 end
 
+def gen_fun_defs(arr, mod, env)
+  arr.each { |e| e.gen_fun_defs(mod: mod, env: env) }
+end
+
+def gen_main(arr, mod, env)
+  if env.key?('main')
+    # ???
+    raise ":|"
+  end
+
+  stmts, exprs = arr.partition do |e|
+    [FunDecl, FunDef].include?(e.class)
+  end
+
+  arr.replace(stmts)
+
+  arr << FunDef.new('main', [], Int32Type.instance, exprs)
+end
+
 def gen_code(arr, mod, env)
-  arr.each { |e| e.gen_code(mod: mod, env: env) }
+  arr.each { |e| e.gen_code(mod: mod, env: env, function: nil, builder: nil) }
 end
 
 #############################################################################
@@ -200,24 +270,19 @@ things = [
     true,
     Int32Type.instance,
   ),
-  FunDef.new(
-    "main",
-    [],
-    Int32Type.instance,
-    FunCall.new(
-      "printf",
-      [
-        Str.new("It’s %u!\n"),
-        FunCall.new(
-          "sum",
-          [
-            Const.new(100, Int32Type.instance),
-            Const.new(20, Int32Type.instance),
-            Const.new(3, Int32Type.instance),
-          ],
-        ),
-      ],
-    ),
+  FunCall.new(
+    "printf",
+    [
+      Str.new("It’s %u!\n"),
+      FunCall.new(
+        "sum",
+        [
+          Const.new(100, Int32Type.instance),
+          Const.new(20, Int32Type.instance),
+          Const.new(3, Int32Type.instance),
+        ],
+      ),
+    ],
   ),
   FunDef.new(
     "sum",
@@ -250,8 +315,10 @@ log("defined all")
 log("running")
 
 mod = LLVMModuleCreateWithName("giraffe")
-env = {}
-fun_decls = gen_fun_decls(things, mod, env)
+env = Env.new
+gen_fun_decls(things, mod, env)
+gen_fun_defs(things, mod, env)
+gen_main(things, mod, env)
 gen_code(things, mod, env)
 
 log("done running")
