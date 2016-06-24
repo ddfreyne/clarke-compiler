@@ -12,13 +12,15 @@ include FFI::LLVM
 
 log('requirements loaded')
 
+#############################################################################
+# HELPER
+#############################################################################
+
 def to_llvm(array)
   FFI::MemoryPointer.new(:pointer, array.size).tap do |ptr|
     ptr.put_array_of_pointer(0, array)
   end
 end
-
-### helper
 
 class Env
   def initialize(parent: nil, contents: {})
@@ -48,6 +50,9 @@ class Env
 end
 
 class Type
+  def gen_code(mod:)
+    raise NotImplementedError
+  end
 end
 
 class Int32Type < Type
@@ -68,7 +73,11 @@ end
 
 FunParam = Struct.new(:name, :type)
 
-module Gen
+#############################################################################
+# NODES
+#############################################################################
+
+module Node
   def typecheck(mod:, env:)
   end
 
@@ -79,7 +88,7 @@ end
 ### top-level
 
 FunDecl = Struct.new(:name, :arg_types, :is_varargs, :return_type) do
-  include Gen
+  include Node
 
   def lift_fun_decls(mod:, env:)
     env[name] = self
@@ -96,7 +105,7 @@ FunDecl = Struct.new(:name, :arg_types, :is_varargs, :return_type) do
 end
 
 FunDef = Struct.new(:name, :params, :return_type, :body) do
-  include Gen
+  include Node
 
   def lift_fun_decls(mod:, env:)
     env[name] = FunDecl.new(name, params.map(&:type), false, return_type)
@@ -142,7 +151,7 @@ end
 ### expressions
 
 Const = Struct.new(:value, :type) do
-  include Gen
+  include Node
 
   def gen_code(mod:, function:, builder:, env:)
     LLVMConstInt(type.gen_code(mod: mod), value, 0)
@@ -154,7 +163,7 @@ Const = Struct.new(:value, :type) do
 end
 
 Str = Struct.new(:value) do
-  include Gen
+  include Node
 
   def gen_code(mod:, function:, builder:, env:)
     LLVMBuildGlobalStringPtr(builder, value, 'str')
@@ -166,7 +175,7 @@ Str = Struct.new(:value) do
 end
 
 VarRef = Struct.new(:name) do
-  include Gen
+  include Node
 
   def gen_code(mod:, function:, builder:, env:)
     env.fetch(name)
@@ -178,7 +187,7 @@ VarRef = Struct.new(:name) do
 end
 
 OpAdd = Struct.new(:lhs, :rhs) do
-  include Gen
+  include Node
 
   def gen_code(mod:, function:, builder:, env:)
     LLVMBuildAdd(
@@ -197,7 +206,7 @@ OpAdd = Struct.new(:lhs, :rhs) do
 end
 
 FunCall = Struct.new(:name, :args) do
-  include Gen
+  include Node
 
   def gen_code(mod:, function:, builder:, env:)
     args_ptr = to_llvm(args.map { |a| a.gen_code(mod: mod, function: function, builder: builder, env: env) })
@@ -210,7 +219,7 @@ FunCall = Struct.new(:name, :args) do
 end
 
 If = Struct.new(:condition, :true_clause, :false_clause) do
-  include Gen
+  include Node
 
   def gen_code(mod:, function:, builder:, env:)
     var_condition = condition.gen_code(mod: mod, function: function, builder: builder, env: env)
@@ -249,6 +258,8 @@ If = Struct.new(:condition, :true_clause, :false_clause) do
   end
 end
 
+#############################################################################
+# PHASES
 #############################################################################
 
 def lift_fun_decls(arr, mod, env)
@@ -294,6 +305,8 @@ def gen_code(arr, mod, env)
   arr.each { |e| e.gen_code(mod: mod, env: env, function: nil, builder: nil) }
 end
 
+#############################################################################
+# PROGRAM
 #############################################################################
 
 things = [
@@ -349,17 +362,23 @@ things = [
 ]
 
 #############################################################################
+# DRIVER
+#############################################################################
 
 log('compilation started')
 
-mod = LLVMModuleCreateWithName('giraffe')
+mod = LLVMModuleCreateWithName('root')
 env = Env.new
+
 log('  phase: lift_main')
 lift_main(things, mod, env)
+
 log('  phase: lift_fun_decls')
 lift_fun_decls(things, mod, env)
+
 log('  phase: typecheck')
 typecheck(things, mod, env)
+
 log('  phase: gen_code')
 gen_code(things, mod, env)
 
