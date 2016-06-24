@@ -69,9 +69,6 @@ end
 FunParam = Struct.new(:name, :type)
 
 module Gen
-  def gen_fun_defs(mod:, env:)
-  end
-
   def typecheck(mod:, env:)
   end
 
@@ -279,10 +276,6 @@ def gen_fun_decls(arr, mod, env)
   arr.concat(others)
 end
 
-def gen_fun_defs(arr, mod, env)
-  arr.each { |e| e.gen_fun_defs(mod: mod, env: env) }
-end
-
 def gen_main(arr, mod, env)
   if env.key?('main')
     raise "Function `main` already defined"
@@ -370,8 +363,6 @@ log("phase: gen_main")
 gen_main(things, mod, env)
 log("phase: gen_fun_decls")
 gen_fun_decls(things, mod, env)
-log("phase: gen_fun_defs")
-gen_fun_defs(things, mod, env)
 log("phase: typecheck")
 typecheck(things, mod, env)
 log("phase: gen_code")
