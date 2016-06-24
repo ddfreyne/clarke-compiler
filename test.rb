@@ -2,15 +2,15 @@ def log(msg)
   $stderr.puts "[#{Time.now.strftime('%H:%M:%S.%L')}] #{msg}"
 end
 
-log("root")
+log('hello!')
 
 require 'ffi/llvm'
 require 'singleton'
 require 'pp'
 
-log("required llvm")
-
 include FFI::LLVM
+
+log('requirements loaded')
 
 def to_llvm(array)
   FFI::MemoryPointer.new(:pointer, array.size).tap do |ptr|
@@ -350,21 +350,20 @@ things = [
 
 #############################################################################
 
-log("defined all")
-log("running")
+log('compilation started')
 
-mod = LLVMModuleCreateWithName("giraffe")
+mod = LLVMModuleCreateWithName('giraffe')
 env = Env.new
-log("phase: gen_main")
+log('  phase: gen_main')
 gen_main(things, mod, env)
-log("phase: gen_fun_decls")
+log('  phase: gen_fun_decls')
 gen_fun_decls(things, mod, env)
-log("phase: typecheck")
+log('  phase: typecheck')
 typecheck(things, mod, env)
-log("phase: gen_code")
+log('  phase: gen_code')
 gen_code(things, mod, env)
 
-log("done running")
+log('compilation ended')
 
 LLVMVerifyModule(mod, :llvm_abort_process_action, nil)
 puts LLVMPrintModuleToString(mod)
