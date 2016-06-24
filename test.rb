@@ -74,7 +74,7 @@ module Gen
   def gen_fun_defs(mod:, env:)
   end
 
-  def gen_types(mod:, env:)
+  def typecheck(mod:, env:)
   end
 
   def gen_code(mod:, function:, builder:, env:)
@@ -146,9 +146,19 @@ FunDef = Struct.new(:name, :params, :return_type, :body) do
       new_env[par.name] = llvm_param
     end
 
-    tmp = body.gen_code(mod: mod, function: function, builder: builder, env: new_env)
+    tmp = body.reduce(0) { |_, e| e.gen_code(mod: mod, function: function, builder: builder, env: new_env) }
 
     LLVMBuildRet(builder, tmp)
+  end
+
+  def typecheck(mod:, env:)
+    new_env = env.push
+    params.each do |par|
+      new_env[par.name] = par
+    end
+
+    res = body.last.typecheck(mod: mod, env: new_env) == Int32Type.instance
+    # FIXME: do something with res
   end
 end
 
@@ -160,6 +170,10 @@ Const = Struct.new(:value, :type) do
   def gen_code(mod:, function:, builder:, env:)
     LLVMConstInt(type.gen_code(mod: mod), value, 0)
   end
+
+  def typecheck(mod:, env:)
+    type
+  end
 end
 
 Str = Struct.new(:value) do
@@ -168,6 +182,10 @@ Str = Struct.new(:value) do
   def gen_code(mod:, function:, builder:, env:)
     LLVMBuildGlobalStringPtr(builder, value, 'str')
   end
+
+  def typecheck(mod:, env:)
+    StringType.instance
+  end
 end
 
 VarRef = Struct.new(:name) do
@@ -175,6 +193,10 @@ VarRef = Struct.new(:name) do
 
   def gen_code(mod:, function:, builder:, env:)
     env.fetch(name)
+  end
+
+  def typecheck(mod:, env:)
+    env.fetch(name).type
   end
 end
 
@@ -189,6 +211,12 @@ OpAdd = Struct.new(:lhs, :rhs) do
       "op_add_res",
     )
   end
+
+  def typecheck(mod:, env:)
+    raise "type error: lhs is not int32" unless lhs.typecheck(mod: mod, env: env) == Int32Type.instance
+    raise "type error: rhs is not int32" unless rhs.typecheck(mod: mod, env: env) == Int32Type.instance
+    Int32Type.instance
+  end
 end
 
 FunCall = Struct.new(:name, :args) do
@@ -198,6 +226,13 @@ FunCall = Struct.new(:name, :args) do
     args_ptr = to_llvm(args.map { |a| a.gen_code(mod: mod, function: function, builder: builder, env: env) })
 
     LLVMBuildCall(builder, env.fetch(name), args_ptr, args.size, "call_#{name}_res")
+  end
+
+  def typecheck(mod:, env:)
+    # FIXME: wrong -- don’t do llvm types at this point
+    # A better idea is to let gen_fun_decls generate decl structs,
+    # which are then codegen’d to somethign else
+    # env.fetch(name).return_type
   end
 end
 
@@ -217,11 +252,11 @@ If = Struct.new(:condition, :true_clause, :false_clause) do
     LLVMBuildCondBr(builder, cond, block_true, block_false)
 
     LLVMPositionBuilderAtEnd(builder, block_true)
-    res_true = true_clause.gen_code(mod: mod, function: function, builder: builder, env: env)
+    res_true = true_clause.reduce(0) { |_, e| e.gen_code(mod: mod, function: function, builder: builder, env: env) }
     LLVMBuildBr(builder, block_end)
 
     LLVMPositionBuilderAtEnd(builder, block_false)
-    res_false = true_clause.gen_code(mod: mod, function: function, builder: builder, env: env)
+    res_false = true_clause.reduce(0) { |_, e| e.gen_code(mod: mod, function: function, builder: builder, env: env) }
     LLVMBuildBr(builder, block_end)
 
     LLVMPositionBuilderAtEnd(builder, block_end)
@@ -232,6 +267,12 @@ If = Struct.new(:condition, :true_clause, :false_clause) do
 
     LLVMAddIncoming(res, phi_vals_ptr, phi_blocks_ptr, 2)
     res
+  end
+
+  def typecheck(mod:, env:)
+    raise "type error: true clause is not int32" unless true_clause.last.typecheck(mod: mod, env: env) == Int32Type.instance
+    raise "type error: false clause is not int32" unless false_clause.last.typecheck(mod: mod, env: env) == Int32Type.instance
+    Int32Type.instance
   end
 end
 
@@ -259,8 +300,8 @@ def gen_main(arr, mod, env)
   arr << FunDef.new('main', [], Int32Type.instance, exprs)
 end
 
-def gen_types(arr, mod, env)
-  arr.each { |e| e.gen_types(mod: mod, env: env) }
+def typecheck(arr, mod, env)
+  arr.each { |e| e.typecheck(mod: mod, env: env) }
 end
 
 def gen_code(arr, mod, env)
@@ -298,20 +339,26 @@ things = [
       FunParam.new("c", Int32Type.instance),
     ],
     Int32Type.instance,
-    If.new(
-      VarRef.new("a"),
-      OpAdd.new(
+    [
+      If.new(
         VarRef.new("a"),
-        OpAdd.new(
-          VarRef.new("b"),
-          VarRef.new("c"),
-        ),
+        [
+          OpAdd.new(
+            VarRef.new("a"),
+            OpAdd.new(
+              VarRef.new("b"),
+              VarRef.new("c"),
+            ),
+          ),
+        ],
+        [
+          OpAdd.new(
+            VarRef.new("a"),
+            VarRef.new("b"),
+          ),
+        ],
       ),
-      OpAdd.new(
-        VarRef.new("a"),
-        VarRef.new("b"),
-      ),
-    )
+    ],
   ),
 ]
 
@@ -325,7 +372,7 @@ env = Env.new
 gen_fun_decls(things, mod, env)
 gen_fun_defs(things, mod, env)
 gen_main(things, mod, env)
-gen_types(things, mod, env)
+typecheck(things, mod, env)
 gen_code(things, mod, env)
 
 log("done running")
