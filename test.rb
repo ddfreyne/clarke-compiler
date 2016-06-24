@@ -68,13 +68,16 @@ end
 FunParam = Struct.new(:name, :type)
 
 module Gen
-  def gen_code(mod:, function:, builder:, env:)
+  def gen_fun_decls(mod:, env:)
   end
 
   def gen_fun_defs(mod:, env:)
   end
 
-  def gen_fun_decls(mod:, env:)
+  def gen_types(mod:, env:)
+  end
+
+  def gen_code(mod:, function:, builder:, env:)
   end
 end
 
@@ -99,6 +102,27 @@ end
 
 FunDef = Struct.new(:name, :params, :return_type, :body) do
   include Gen
+
+  def gen_fun_decls(mod:, env:)
+    arg_types_llvm = to_llvm(params.map { |pa| pa.type.gen_code(mod: mod) })
+    return_type_llvm = return_type.gen_code(mod: mod)
+    is_varargs_llvm = 0
+
+    if env.key?(name)
+      raise "Function already defined: #{name}"
+    end
+
+    type = LLVMFunctionType(return_type_llvm, arg_types_llvm, params.size, is_varargs_llvm)
+    function = LLVMAddFunction(mod, name, type)
+    env[name] = function
+
+    params.each_with_index do |par, i|
+      llvm_param = LLVMGetParam(function, i)
+      LLVMSetValueName(llvm_param, par.name)
+    end
+
+    function
+  end
 
   def gen_fun_defs(mod:, env:)
     params_ptr = to_llvm(params.map { |pa| pa.type.gen_code(mod: mod) })
@@ -125,27 +149,6 @@ FunDef = Struct.new(:name, :params, :return_type, :body) do
     tmp = body.gen_code(mod: mod, function: function, builder: builder, env: new_env)
 
     LLVMBuildRet(builder, tmp)
-  end
-
-  def gen_fun_decls(mod:, env:)
-    arg_types_llvm = to_llvm(params.map { |pa| pa.type.gen_code(mod: mod) })
-    return_type_llvm = return_type.gen_code(mod: mod)
-    is_varargs_llvm = 0
-
-    if env.key?(name)
-      raise "Function already defined: #{name}"
-    end
-
-    type = LLVMFunctionType(return_type_llvm, arg_types_llvm, params.size, is_varargs_llvm)
-    function = LLVMAddFunction(mod, name, type)
-    env[name] = function
-
-    params.each_with_index do |par, i|
-      llvm_param = LLVMGetParam(function, i)
-      LLVMSetValueName(llvm_param, par.name)
-    end
-
-    function
   end
 end
 
@@ -244,8 +247,7 @@ end
 
 def gen_main(arr, mod, env)
   if env.key?('main')
-    # ???
-    raise ":|"
+    raise "Function `main` already defined"
   end
 
   stmts, exprs = arr.partition do |e|
@@ -255,6 +257,10 @@ def gen_main(arr, mod, env)
   arr.replace(stmts)
 
   arr << FunDef.new('main', [], Int32Type.instance, exprs)
+end
+
+def gen_types(arr, mod, env)
+  arr.each { |e| e.gen_types(mod: mod, env: env) }
 end
 
 def gen_code(arr, mod, env)
@@ -319,6 +325,7 @@ env = Env.new
 gen_fun_decls(things, mod, env)
 gen_fun_defs(things, mod, env)
 gen_main(things, mod, env)
+gen_types(things, mod, env)
 gen_code(things, mod, env)
 
 log("done running")
