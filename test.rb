@@ -6,6 +6,7 @@ log("root")
 
 require 'ffi/llvm'
 require 'singleton'
+require 'pp'
 
 log("required llvm")
 
@@ -68,9 +69,6 @@ end
 FunParam = Struct.new(:name, :type)
 
 module Gen
-  def gen_fun_decls(mod:, env:)
-  end
-
   def gen_fun_defs(mod:, env:)
   end
 
@@ -87,13 +85,13 @@ FunDecl = Struct.new(:name, :arg_types, :is_varargs, :return_type) do
   include Gen
 
   def gen_fun_decls(mod:, env:)
+    env[name] = self
+  end
+
+  def gen_code(mod:, function:, builder:, env:)
     arg_types_llvm = to_llvm(arg_types.map { |at| at.gen_code(mod: mod) })
     return_type_llvm = return_type.gen_code(mod: mod)
     is_varargs_llvm = is_varargs ? 1 : 0
-
-    if env.key?(name)
-      raise "Function already declared: #{name}"
-    end
 
     type = LLVMFunctionType(return_type_llvm, arg_types_llvm, arg_types.size, is_varargs_llvm)
     LLVMAddFunction(mod, name, type).tap { |f| env[name] = f }
@@ -104,27 +102,10 @@ FunDef = Struct.new(:name, :params, :return_type, :body) do
   include Gen
 
   def gen_fun_decls(mod:, env:)
-    arg_types_llvm = to_llvm(params.map { |pa| pa.type.gen_code(mod: mod) })
-    return_type_llvm = return_type.gen_code(mod: mod)
-    is_varargs_llvm = 0
-
-    if env.key?(name)
-      raise "Function already defined: #{name}"
-    end
-
-    type = LLVMFunctionType(return_type_llvm, arg_types_llvm, params.size, is_varargs_llvm)
-    function = LLVMAddFunction(mod, name, type)
-    env[name] = function
-
-    params.each_with_index do |par, i|
-      llvm_param = LLVMGetParam(function, i)
-      LLVMSetValueName(llvm_param, par.name)
-    end
-
-    function
+    env[name] = FunDecl.new(name, params.map(&:type), false, return_type)
   end
 
-  def gen_fun_defs(mod:, env:)
+  def gen_code(mod:, function:, builder:, env:)
     params_ptr = to_llvm(params.map { |pa| pa.type.gen_code(mod: mod) })
 
     function_type = LLVMFunctionType(
@@ -224,7 +205,6 @@ FunCall = Struct.new(:name, :args) do
 
   def gen_code(mod:, function:, builder:, env:)
     args_ptr = to_llvm(args.map { |a| a.gen_code(mod: mod, function: function, builder: builder, env: env) })
-
     LLVMBuildCall(builder, env.fetch(name), args_ptr, args.size, "call_#{name}_res")
   end
 
@@ -279,7 +259,24 @@ end
 #############################################################################
 
 def gen_fun_decls(arr, mod, env)
-  arr.each { |e| e.gen_fun_decls(mod: mod, env: env) }
+  fun_decls = []
+  fun_defs = []
+  others = []
+  arr.each do |e|
+    case e
+    when FunDecl
+      fun_decls << e
+    when FunDef
+      fun_defs << e
+    else
+      others << e
+    end
+  end
+
+  arr.replace([])
+  (fun_decls + fun_defs).each { |e| arr << e.gen_fun_decls(mod: mod, env: env) }
+  arr.concat(fun_defs)
+  arr.concat(others)
 end
 
 def gen_fun_defs(arr, mod, env)
@@ -369,10 +366,15 @@ log("running")
 
 mod = LLVMModuleCreateWithName("giraffe")
 env = Env.new
-gen_fun_decls(things, mod, env)
-gen_fun_defs(things, mod, env)
+log("phase: gen_main")
 gen_main(things, mod, env)
+log("phase: gen_fun_decls")
+gen_fun_decls(things, mod, env)
+log("phase: gen_fun_defs")
+gen_fun_defs(things, mod, env)
+log("phase: typecheck")
 typecheck(things, mod, env)
+log("phase: gen_code")
 gen_code(things, mod, env)
 
 log("done running")
