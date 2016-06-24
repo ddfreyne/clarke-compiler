@@ -81,7 +81,7 @@ end
 FunDecl = Struct.new(:name, :arg_types, :is_varargs, :return_type) do
   include Gen
 
-  def gen_fun_decls(mod:, env:)
+  def lift_fun_decls(mod:, env:)
     env[name] = self
   end
 
@@ -98,7 +98,7 @@ end
 FunDef = Struct.new(:name, :params, :return_type, :body) do
   include Gen
 
-  def gen_fun_decls(mod:, env:)
+  def lift_fun_decls(mod:, env:)
     env[name] = FunDecl.new(name, params.map(&:type), false, return_type)
   end
 
@@ -251,7 +251,7 @@ end
 
 #############################################################################
 
-def gen_fun_decls(arr, mod, env)
+def lift_fun_decls(arr, mod, env)
   fun_decls = []
   fun_defs = []
   others = []
@@ -267,12 +267,12 @@ def gen_fun_decls(arr, mod, env)
   end
 
   arr.replace([])
-  (fun_decls + fun_defs).each { |e| arr << e.gen_fun_decls(mod: mod, env: env) }
+  (fun_decls + fun_defs).each { |e| arr << e.lift_fun_decls(mod: mod, env: env) }
   arr.concat(fun_defs)
   arr.concat(others)
 end
 
-def gen_main(arr, mod, env)
+def lift_main(arr, mod, env)
   if env.key?('main')
     raise "Function `main` already defined"
   end
@@ -354,10 +354,10 @@ log('compilation started')
 
 mod = LLVMModuleCreateWithName('giraffe')
 env = Env.new
-log('  phase: gen_main')
-gen_main(things, mod, env)
-log('  phase: gen_fun_decls')
-gen_fun_decls(things, mod, env)
+log('  phase: lift_main')
+lift_main(things, mod, env)
+log('  phase: lift_fun_decls')
+lift_fun_decls(things, mod, env)
 log('  phase: typecheck')
 typecheck(things, mod, env)
 log('  phase: gen_code')
