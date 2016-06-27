@@ -52,4 +52,4 @@ things = [
   ),
 ]
 
-run(things)
+Clarke::Driver.new.run(things)

@@ -1,4 +1,6 @@
-require_relative 'clarke/util'
+module Clarke
+end
+
 require_relative 'clarke/phases'
 require_relative 'clarke/env'
 require_relative 'clarke/types'
