@@ -3,14 +3,14 @@ module Clarke
     def run(things)
       log('compilation started')
 
-      log('  phase: build_env')
-      env = Clarke::Phases::BuildEnv.new.run(things)
-
       log('  phase: lift_main')
-      Clarke::Phases::LiftMain.new.run(things, env)
+      Clarke::Phases::LiftMain.new.run(things)
 
       log('  phase: lift_fun_decls')
-      Clarke::Phases::LiftFunDecls.new.run(things, env)
+      Clarke::Phases::LiftFunDecls.new.run(things)
+
+      log('  phase: build_env')
+      env = Clarke::Phases::BuildEnv.new.run(things)
 
       log('  phase: typecheck')
       Clarke::Phases::Typecheck.new.run(things)

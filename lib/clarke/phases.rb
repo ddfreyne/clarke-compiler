@@ -64,7 +64,7 @@ module Clarke
     end
 
     class LiftMain < Generic
-      def run(arr, env)
+      def run(arr)
         if arr.any? { |e| e.is_a?(FunDef) && e.name == 'main' }
           raise "Function `main` is reserved"
         end
@@ -75,17 +75,12 @@ module Clarke
 
         arr.replace(stmts)
 
-        main = FunDef.new('main', [], Int32Type.instance, exprs).tap do |fun_decl|
-          fun_decl.env = env
-        end
-
-        arr << main
-        env['main'] = main
+        arr << FunDef.new('main', [], Int32Type.instance, exprs)
       end
     end
 
     class LiftFunDecls < Generic
-      def run(arr, env)
+      def run(arr)
         fun_decls = []
         fun_defs = []
         others = []
@@ -106,19 +101,13 @@ module Clarke
             when Clarke::Nodes::FunDecl
               e
             when Clarke::Nodes::FunDef
-              FunDecl.new(e.name, e.params.map(&:type), false, e.return_type).tap do |fun_decl|
-                fun_decl.env = env
-              end
+              FunDecl.new(e.name, e.params.map(&:type), false, e.return_type)
             else
               raise '???'
             end
           end
 
         arr.replace(new_fun_decls + fun_defs + others)
-
-        new_fun_decls.each do |e|
-          env[e.name] = e
-        end
       end
     end
 
