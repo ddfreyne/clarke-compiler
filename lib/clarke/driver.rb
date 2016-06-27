@@ -16,13 +16,11 @@ module Clarke
       Clarke::Phases::Typecheck.new.run(things)
 
       log('  phase: gen_code')
-      mod = LLVMModuleCreateWithName('root')
-      Clarke::Phases::GenCode.new.run(things, mod, env)
+      ir = Clarke::Phases::GenCode.new.run(things)
 
       log('compilation ended')
 
-      LLVMVerifyModule(mod, :llvm_abort_process_action, nil)
-      puts LLVMPrintModuleToString(mod)
+      puts ir
     end
 
     private
