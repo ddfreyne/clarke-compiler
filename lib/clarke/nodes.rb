@@ -1,3 +1,5 @@
+require 'values'
+
 module Node
   def typecheck(mod:, env:)
   end
@@ -8,7 +10,7 @@ end
 
 ### top-level
 
-FunDecl = Struct.new(:name, :arg_types, :is_varargs, :return_type) do
+FunDecl = Value.new(:name, :arg_types, :is_varargs, :return_type) do
   include Node
 
   def lift_fun_decls(mod:, env:)
@@ -25,7 +27,7 @@ FunDecl = Struct.new(:name, :arg_types, :is_varargs, :return_type) do
   end
 end
 
-FunDef = Struct.new(:name, :params, :return_type, :body) do
+FunDef = Value.new(:name, :params, :return_type, :body) do
   include Node
 
   def lift_fun_decls(mod:, env:)
@@ -71,7 +73,7 @@ end
 
 ### expressions
 
-Const = Struct.new(:value, :type) do
+Const = Value.new(:value, :type) do
   include Node
 
   def gen_code(mod:, function:, builder:, env:)
@@ -83,7 +85,7 @@ Const = Struct.new(:value, :type) do
   end
 end
 
-Str = Struct.new(:value) do
+Str = Value.new(:value) do
   include Node
 
   def gen_code(mod:, function:, builder:, env:)
@@ -95,7 +97,7 @@ Str = Struct.new(:value) do
   end
 end
 
-VarRef = Struct.new(:name) do
+VarRef = Value.new(:name) do
   include Node
 
   def gen_code(mod:, function:, builder:, env:)
@@ -107,7 +109,7 @@ VarRef = Struct.new(:name) do
   end
 end
 
-OpAdd = Struct.new(:lhs, :rhs) do
+OpAdd = Value.new(:lhs, :rhs) do
   include Node
 
   def gen_code(mod:, function:, builder:, env:)
@@ -126,7 +128,7 @@ OpAdd = Struct.new(:lhs, :rhs) do
   end
 end
 
-FunCall = Struct.new(:name, :args) do
+FunCall = Value.new(:name, :args) do
   include Node
 
   def gen_code(mod:, function:, builder:, env:)
@@ -139,7 +141,7 @@ FunCall = Struct.new(:name, :args) do
   end
 end
 
-If = Struct.new(:condition, :true_clause, :false_clause) do
+If = Value.new(:condition, :true_clause, :false_clause) do
   include Node
 
   def gen_code(mod:, function:, builder:, env:)
