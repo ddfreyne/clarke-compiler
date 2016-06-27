@@ -22,10 +22,24 @@ module Clarke
           end
         end
 
-        arr.replace([])
-        (fun_decls + fun_defs).each { |e| arr << e.lift_fun_decls(mod: mod, env: env) }
-        arr.concat(fun_defs)
-        arr.concat(others)
+        new_fun_decls =
+          (fun_decls + fun_defs).map do |e|
+            case e
+            when Clarke::Nodes::FunDecl
+              env[e.name] = e
+              e
+            when Clarke::Nodes::FunDef
+              fun_decl = FunDecl.new(e.name, e.params.map(&:type), false, e.return_type)
+              env[e.name] = fun_decl
+              fun_decl
+            else
+              raise '???'
+            end
+          end
+
+        # TODO: immutable env pls
+
+        new_fun_decls + fun_defs + others
       end
     end
 

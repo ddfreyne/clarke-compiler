@@ -7,16 +7,16 @@ module Clarke
       env = Clarke::Env.new
 
       log('  phase: lift_main')
-      Clarke::Phases::LiftMain.new.run(things, mod, env)
+      things = Clarke::Phases::LiftMain.new.run(things, mod, env)
 
       log('  phase: lift_fun_decls')
-      Clarke::Phases::LiftFunDecls.new.run(things, mod, env)
+      things = Clarke::Phases::LiftFunDecls.new.run(things, mod, env)
 
       log('  phase: typecheck')
-      Clarke::Phases::Typecheck.new.run(things, mod, env)
+      things = Clarke::Phases::Typecheck.new.run(things, mod, env)
 
       log('  phase: gen_code')
-      Clarke::Phases::GenCode.new.run(things, mod, env)
+      things = Clarke::Phases::GenCode.new.run(things, mod, env)
 
       log('compilation ended')
 

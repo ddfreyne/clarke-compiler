@@ -27,10 +27,6 @@ module Clarke
     FunDecl = Value.new(:name, :arg_types, :is_varargs, :return_type) do
       include Node
 
-      def lift_fun_decls(mod:, env:)
-        env[name] = self
-      end
-
       def gen_code(mod:, function:, builder:, env:)
         arg_types_llvm = to_llvm(arg_types.map { |at| at.gen_code(mod: mod) })
         return_type_llvm = return_type.gen_code(mod: mod)
@@ -43,10 +39,6 @@ module Clarke
 
     FunDef = Value.new(:name, :params, :return_type, :body) do
       include Node
-
-      def lift_fun_decls(mod:, env:)
-        env[name] = FunDecl.new(name, params.map(&:type), false, return_type)
-      end
 
       def gen_code(mod:, function:, builder:, env:)
         params_ptr = to_llvm(params.map { |pa| pa.type.gen_code(mod: mod) })
