@@ -1,4 +1,14 @@
 require 'values'
+require 'ffi/llvm'
+
+include FFI::LLVM
+
+# TODO: move to driver (along with other gen_code stuff)
+def to_llvm(array)
+  FFI::MemoryPointer.new(:pointer, array.size).tap do |ptr|
+    ptr.put_array_of_pointer(0, array)
+  end
+end
 
 module Node
   def typecheck(mod:, env:)
@@ -9,6 +19,8 @@ module Node
 end
 
 ### top-level
+
+FunParam = Value.new(:name, :type)
 
 FunDecl = Value.new(:name, :arg_types, :is_varargs, :return_type) do
   include Node

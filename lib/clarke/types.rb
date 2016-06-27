@@ -1,3 +1,5 @@
+require 'singleton'
+
 class Type
   def gen_code(mod:)
     raise NotImplementedError
