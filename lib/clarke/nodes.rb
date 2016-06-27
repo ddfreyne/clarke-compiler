@@ -15,9 +15,6 @@ module Clarke
     module Node
       attr_accessor :tenv
 
-      def typecheck
-      end
-
       def gen_code(mod:, function:, builder:, env:)
       end
 
@@ -72,10 +69,6 @@ module Clarke
 
         LLVMBuildRet(builder, tmp)
       end
-
-      def typecheck
-        raise 'last expr of function is not int32' unless body.last.typecheck == Int32Type.instance
-      end
     end
 
     ### expressions
@@ -86,10 +79,6 @@ module Clarke
       def gen_code(mod:, function:, builder:, env:)
         LLVMConstInt(type.gen_code(mod: mod), value, 0)
       end
-
-      def typecheck
-        type
-      end
     end
 
     Str = Struct.new(:value) do
@@ -98,10 +87,6 @@ module Clarke
       def gen_code(mod:, function:, builder:, env:)
         LLVMBuildGlobalStringPtr(builder, value, 'str')
       end
-
-      def typecheck
-        StringType.instance
-      end
     end
 
     VarRef = Struct.new(:name) do
@@ -109,10 +94,6 @@ module Clarke
 
       def gen_code(mod:, function:, builder:, env:)
         env.fetch(name)
-      end
-
-      def typecheck
-        tenv.fetch(name).type
       end
     end
 
@@ -127,12 +108,6 @@ module Clarke
           "op_add_res",
         )
       end
-
-      def typecheck
-        raise "type error: lhs is not int32" unless lhs.typecheck == Int32Type.instance
-        raise "type error: rhs is not int32" unless rhs.typecheck == Int32Type.instance
-        Int32Type.instance
-      end
     end
 
     FunCall = Struct.new(:name, :args) do
@@ -141,10 +116,6 @@ module Clarke
       def gen_code(mod:, function:, builder:, env:)
         args_ptr = to_llvm(args.map { |a| a.gen_code(mod: mod, function: function, builder: builder, env: env) })
         LLVMBuildCall(builder, env.fetch(name), args_ptr, args.size, "call_#{name}_res")
-      end
-
-      def typecheck
-        tenv.fetch(name).return_type
       end
     end
 
@@ -179,12 +150,6 @@ module Clarke
 
         LLVMAddIncoming(res, phi_vals_ptr, phi_blocks_ptr, 2)
         res
-      end
-
-      def typecheck
-        raise "type error: true clause is not int32" unless true_clause.last.typecheck == Int32Type.instance
-        raise "type error: false clause is not int32" unless false_clause.last.typecheck == Int32Type.instance
-        Int32Type.instance
       end
     end
   end
