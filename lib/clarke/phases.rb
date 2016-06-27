@@ -73,9 +73,10 @@ module Clarke
           [FunDecl, FunDef].include?(e.class)
         end
 
-        arr.replace(stmts)
-
-        arr << FunDef.new('main', [], Int32Type.instance, exprs)
+        unless exprs.empty?
+          arr.replace(stmts)
+          arr << FunDef.new('main', [], Int32Type.instance, exprs)
+        end
       end
     end
 
