@@ -65,8 +65,8 @@ module Clarke
 
     class LiftMain < Generic
       def run(arr, env)
-        if env.key?('main')
-          raise "Function `main` already defined"
+        if arr.any? { |e| e.is_a?(FunDef) && e.name == 'main' }
+          raise "Function `main` is reserved"
         end
 
         stmts, exprs = arr.partition do |e|
