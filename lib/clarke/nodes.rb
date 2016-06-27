@@ -13,6 +13,8 @@ end
 module Clarke
   module Nodes
     module Node
+      attr_accessor :tenv
+
       def typecheck(mod:, env:)
       end
 
@@ -22,9 +24,9 @@ module Clarke
 
     ### top-level
 
-    FunParam = Value.new(:name, :type)
+    FunParam = Struct.new(:name, :type)
 
-    FunDecl = Value.new(:name, :arg_types, :is_varargs, :return_type) do
+    FunDecl = Struct.new(:name, :arg_types, :is_varargs, :return_type) do
       include Node
 
       def gen_code(mod:, function:, builder:, env:)
@@ -37,7 +39,7 @@ module Clarke
       end
     end
 
-    FunDef = Value.new(:name, :params, :return_type, :body) do
+    FunDef = Struct.new(:name, :params, :return_type, :body) do
       include Node
 
       def gen_code(mod:, function:, builder:, env:)
@@ -79,7 +81,7 @@ module Clarke
 
     ### expressions
 
-    Const = Value.new(:value, :type) do
+    Const = Struct.new(:value, :type) do
       include Node
 
       def gen_code(mod:, function:, builder:, env:)
@@ -91,7 +93,7 @@ module Clarke
       end
     end
 
-    Str = Value.new(:value) do
+    Str = Struct.new(:value) do
       include Node
 
       def gen_code(mod:, function:, builder:, env:)
@@ -103,7 +105,7 @@ module Clarke
       end
     end
 
-    VarRef = Value.new(:name) do
+    VarRef = Struct.new(:name) do
       include Node
 
       def gen_code(mod:, function:, builder:, env:)
@@ -115,7 +117,7 @@ module Clarke
       end
     end
 
-    OpAdd = Value.new(:lhs, :rhs) do
+    OpAdd = Struct.new(:lhs, :rhs) do
       include Node
 
       def gen_code(mod:, function:, builder:, env:)
@@ -134,7 +136,7 @@ module Clarke
       end
     end
 
-    FunCall = Value.new(:name, :args) do
+    FunCall = Struct.new(:name, :args) do
       include Node
 
       def gen_code(mod:, function:, builder:, env:)
@@ -147,7 +149,7 @@ module Clarke
       end
     end
 
-    If = Value.new(:condition, :true_clause, :false_clause) do
+    If = Struct.new(:condition, :true_clause, :false_clause) do
       include Node
 
       def gen_code(mod:, function:, builder:, env:)
