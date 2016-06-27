@@ -8,7 +8,7 @@ module Clarke
       env = Clarke::Phases::BuildEnv.new.run(things)
 
       log('  phase: lift_main')
-      things = Clarke::Phases::LiftMain.new.run(things, mod, env)
+      things = Clarke::Phases::LiftMain.new.run(things, env)
 
       log('  phase: lift_fun_decls')
       things = Clarke::Phases::LiftFunDecls.new.run(things, mod, env)

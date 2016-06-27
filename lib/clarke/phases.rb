@@ -51,6 +51,22 @@ module Clarke
       end
     end
 
+    class LiftMain < Generic
+      def run(arr, env)
+        if env.key?('main')
+          raise "Function `main` already defined"
+        end
+
+        stmts, exprs = arr.partition do |e|
+          [FunDecl, FunDef].include?(e.class)
+        end
+
+        arr.replace(stmts)
+
+        arr << FunDef.new('main', [], Int32Type.instance, exprs)
+      end
+    end
+
     class LiftFunDecls < Generic
       def run(arr, mod, env)
         fun_decls = []
@@ -80,22 +96,6 @@ module Clarke
           end
 
         arr.replace(new_fun_decls + fun_defs + others)
-      end
-    end
-
-    class LiftMain < Generic
-      def run(arr, mod, env)
-        if env.key?('main')
-          raise "Function `main` already defined"
-        end
-
-        stmts, exprs = arr.partition do |e|
-          [FunDecl, FunDef].include?(e.class)
-        end
-
-        arr.replace(stmts)
-
-        arr << FunDef.new('main', [], Int32Type.instance, exprs)
       end
     end
 
