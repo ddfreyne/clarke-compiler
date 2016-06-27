@@ -135,7 +135,7 @@ module Clarke
         LLVMBuildBr(builder, block_end)
 
         LLVMPositionBuilderAtEnd(builder, block_false)
-        res_false = true_clause.reduce(0) { |_, e| e.gen_code(mod: mod, function: function, builder: builder, env: env) }
+        res_false = false_clause.reduce(0) { |_, e| e.gen_code(mod: mod, function: function, builder: builder, env: env) }
         LLVMBuildBr(builder, block_end)
 
         LLVMPositionBuilderAtEnd(builder, block_end)
