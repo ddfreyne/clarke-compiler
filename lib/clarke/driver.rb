@@ -4,7 +4,7 @@ module Clarke
       log('compilation started')
 
       mod = LLVMModuleCreateWithName('root')
-      env = Env.new
+      env = Clarke::Env.new
 
       log('  phase: lift_main')
       lift_main(things, mod, env)
