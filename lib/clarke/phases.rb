@@ -100,8 +100,8 @@ module Clarke
     end
 
     class Typecheck < Generic
-      def run(arr, mod, env)
-        arr.each { |e| e.typecheck(mod: mod, env: env) }
+      def run(arr, env)
+        arr.each { |e| e.typecheck(env: env) }
       end
     end
 

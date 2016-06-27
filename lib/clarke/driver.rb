@@ -3,7 +3,6 @@ module Clarke
     def run(things)
       log('compilation started')
 
-      mod = LLVMModuleCreateWithName('root')
       log('  phase: build_env')
       env = Clarke::Phases::BuildEnv.new.run(things)
 
@@ -14,9 +13,10 @@ module Clarke
       Clarke::Phases::LiftFunDecls.new.run(things)
 
       log('  phase: typecheck')
-      Clarke::Phases::Typecheck.new.run(things, mod, env)
+      Clarke::Phases::Typecheck.new.run(things, env)
 
       log('  phase: gen_code')
+      mod = LLVMModuleCreateWithName('root')
       Clarke::Phases::GenCode.new.run(things, mod, env)
 
       log('compilation ended')
