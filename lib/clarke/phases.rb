@@ -68,7 +68,7 @@ module Clarke
     end
 
     class LiftFunDecls < Generic
-      def run(arr, mod, env)
+      def run(arr)
         fun_decls = []
         fun_defs = []
         others = []
