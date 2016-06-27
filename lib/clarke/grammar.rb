@@ -17,15 +17,12 @@ module Clarke
         Clarke::Nodes::Const.new(d.to_i, Int32Type.instance)
       end
 
-    STR =
+    STRING =
       seq(
         char('"'),
         repeat(
-          except(
-            succeed,
-            char('"'),
-          ),
-        ),
+          char_not('"'),
+        ).capture,
         char('"'),
       )
       .map do |d|
@@ -58,12 +55,9 @@ module Clarke
       describe(
         alt(
           string('else'),
-          string('false'),
-          string('fun'),
+          string('def'),
+          string('decl'),
           string('if'),
-          string('in'),
-          string('let'),
-          string('true'),
         ),
         'reserved keyword',
       )
@@ -96,7 +90,7 @@ module Clarke
         ).map { |d| d || [] },
         char(')').ignore,
       ).compact.map do |data|
-        Clarke::Nodes::FunctionCall.new(data[0], data[1])
+        Clarke::Nodes::FunCall.new(data[0], data[1])
       end
 
     VAR_REF =
@@ -151,9 +145,45 @@ module Clarke
         Clarke::Nodes::If.new(data[0], data[1], data[2])
       end
 
+    FUN_DECL =
+      seq(
+        string('decl').ignore,
+        WHITESPACE1.ignore,
+        FUN_NAME,
+        WHITESPACE0.ignore,
+        char('(').ignore,
+        opt(
+          intersperse(
+            seq(
+              WHITESPACE0.ignore,
+              TYPE,
+              WHITESPACE0.ignore,
+            ).compact.first,
+            char(',').ignore,
+          ).select_even,
+        ).map { |d| d || [] },
+        # FIXME: varargs does not allow zero-arg varargs
+        opt(
+          seq(
+            char(','),
+            WHITESPACE0.ignore,
+            string('...'),
+          ),
+        ).capture,
+        char(')').ignore,
+        WHITESPACE0.ignore,
+        string(':').ignore,
+        WHITESPACE0.ignore,
+        TYPE,
+      ).compact.map do |data|
+        Clarke::Nodes::FunDecl.new(
+          data[0], data[1], !data[2].empty?, data[3],
+        )
+      end
+
     FUN_DEF =
       seq(
-        string('fun').ignore,
+        string('def').ignore,
         WHITESPACE1.ignore,
         FUN_NAME,
         WHITESPACE0.ignore,
@@ -185,6 +215,7 @@ module Clarke
       alt(
         FUN_CALL,
         NUMBER,
+        STRING,
         IF,
         VAR_REF,
       )
@@ -192,6 +223,7 @@ module Clarke
     STATEMENT =
       alt(
         FUN_DEF,
+        FUN_DECL,
         EXPRESSION,
       )
 

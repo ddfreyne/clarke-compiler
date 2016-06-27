@@ -4,15 +4,14 @@ include Clarke::Nodes
 
 Clarke::Driver.new.run(
   Clarke::Grammar::PROGRAM.apply(
-    'fun abc(a: int32): int32 {16}',
+<<-EOS
+decl printf(string, ...): int32
+def sum(a: int32, b: int32): int32 {if(0) {222}else{333}}
+printf("hello there!!!\n")
+EOS
   ).data,
 )
-
-Clarke::Driver.new.run(
-  Clarke::Grammar::PROGRAM.apply(
-    'fun abc(a: int32): int32 {if(0) {222}else{333}}',
-  ).data,
-)
+exit 0
 
 things = [
   FunDecl.new(
