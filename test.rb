@@ -2,6 +2,18 @@ require_relative 'lib/clarke'
 
 include Clarke::Nodes
 
+Clarke::Driver.new.run(
+  Clarke::Grammar::PROGRAM.apply(
+    'fun abc(a: int32): int32 {16}',
+  ).data,
+)
+
+Clarke::Driver.new.run(
+  Clarke::Grammar::PROGRAM.apply(
+    'fun abc(a: int32): int32 {if(0) {222}else{333}}',
+  ).data,
+)
+
 things = [
   FunDecl.new(
     "printf",

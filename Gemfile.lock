@@ -1,3 +1,9 @@
+GIT
+  remote: git://github.com/ddfreyne/d-parse.git
+  revision: ac0963b1fc62b33eab272ed5fed6331603bde5e1
+  specs:
+    d-parse (0.1)
+
 PATH
   remote: ./ffi-llvm
   specs:
@@ -14,6 +20,7 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
+  d-parse!
   ffi-llvm!
   values
 
