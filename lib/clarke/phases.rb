@@ -19,41 +19,41 @@ module Clarke
         case obj
         when Clarke::Nodes::FunDecl
           parent_env[obj.name] = obj
-          obj.tenv = parent_env
+          obj.env = parent_env
 
         when Clarke::Nodes::FunDef
           parent_env[obj.name] =
             FunDecl.new(obj.name, obj.params.map(&:type), false, obj.return_type)
-          obj.tenv = parent_env.push
-          obj.params.each { |param| obj.tenv[param.name] = param }
-          obj.body.each { |e| run_single(e, obj.tenv) }
+          obj.env = parent_env.push
+          obj.params.each { |param| obj.env[param.name] = param }
+          obj.body.each { |e| run_single(e, obj.env) }
 
         when Clarke::Nodes::Const
-          obj.tenv = parent_env
+          obj.env = parent_env
 
         when Clarke::Nodes::Str
-          obj.tenv = parent_env
+          obj.env = parent_env
 
         when Clarke::Nodes::VarRef
-          obj.tenv = parent_env
+          obj.env = parent_env
 
         when Clarke::Nodes::OpAdd
-          obj.tenv = parent_env
-          run_single(obj.lhs, obj.tenv)
-          run_single(obj.rhs, obj.tenv)
+          obj.env = parent_env
+          run_single(obj.lhs, obj.env)
+          run_single(obj.rhs, obj.env)
 
         when Clarke::Nodes::FunCall
-          obj.tenv = parent_env
+          obj.env = parent_env
           obj.args.each do |arg|
-            run_single(arg, obj.tenv)
+            run_single(arg, obj.env)
           end
 
         when Clarke::Nodes::If
-          obj.tenv = parent_env.push
-          run_single(obj.condition, obj.tenv)
-          true_env = obj.tenv.push
+          obj.env = parent_env.push
+          run_single(obj.condition, obj.env)
+          true_env = obj.env.push
           obj.true_clause.each { |e| run_single(e, true_env) }
-          false_env = obj.tenv.push
+          false_env = obj.env.push
           obj.false_clause.each { |e| run_single(e, false_env) }
 
         else
@@ -76,7 +76,7 @@ module Clarke
         arr.replace(stmts)
 
         main = FunDef.new('main', [], Int32Type.instance, exprs).tap do |fun_decl|
-          fun_decl.tenv = env
+          fun_decl.env = env
         end
 
         arr << main
@@ -107,7 +107,7 @@ module Clarke
               e
             when Clarke::Nodes::FunDef
               FunDecl.new(e.name, e.params.map(&:type), false, e.return_type).tap do |fun_decl|
-                fun_decl.tenv = env
+                fun_decl.env = env
               end
             else
               raise '???'
@@ -143,7 +143,7 @@ module Clarke
           StringType.instance
 
         when VarRef
-          obj.tenv.fetch(obj.name).type
+          obj.env.fetch(obj.name).type
 
         when OpAdd
           unless run_single(obj.lhs) == Int32Type.instance
@@ -155,7 +155,7 @@ module Clarke
           Int32Type.instance
 
         when FunCall
-          obj.tenv.fetch(obj.name).return_type
+          obj.env.fetch(obj.name).return_type
 
         when If
           unless run_single(obj.true_clause.last) == Int32Type.instance

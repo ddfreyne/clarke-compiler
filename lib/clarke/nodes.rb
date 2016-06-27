@@ -13,13 +13,9 @@ end
 module Clarke
   module Nodes
     module Node
-      attr_accessor :tenv
+      attr_accessor :env
 
       def gen_code(mod:, function:, builder:, env:)
-      end
-
-      def inspect
-        tenv.inspect + ':' + super
       end
     end
 
