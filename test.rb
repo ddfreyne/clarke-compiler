@@ -1,5 +1,7 @@
 require_relative 'lib/clarke'
 
+include Clarke::Nodes
+
 things = [
   FunDecl.new(
     "printf",
