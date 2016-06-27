@@ -10,10 +10,10 @@ module Clarke
       Clarke::Phases::LiftMain.new.run(things, env)
 
       log('  phase: lift_fun_decls')
-      Clarke::Phases::LiftFunDecls.new.run(things)
+      Clarke::Phases::LiftFunDecls.new.run(things, env)
 
       log('  phase: typecheck')
-      Clarke::Phases::Typecheck.new.run(things, env)
+      Clarke::Phases::Typecheck.new.run(things)
 
       log('  phase: gen_code')
       mod = LLVMModuleCreateWithName('root')

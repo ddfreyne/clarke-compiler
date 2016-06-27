@@ -22,12 +22,9 @@ module Clarke
         when Clarke::Nodes::FunDef
           parent_env[obj.name] =
             FunDecl.new(obj.name, obj.params.map(&:type), false, obj.return_type)
-          obj.tenv =
-            parent_env.push.tap do |new_env|
-              obj.params.each do |param|
-                new_env[param.name] = param
-              end
-            end
+          obj.tenv = parent_env.push
+          obj.params.each { |param| obj.tenv[param.name] = param }
+          obj.body.each { |e| run_single(e, obj.tenv) }
 
         when Clarke::Nodes::Const
           obj.tenv = parent_env
@@ -40,12 +37,25 @@ module Clarke
 
         when Clarke::Nodes::OpAdd
           obj.tenv = parent_env
+          run_single(obj.lhs, obj.tenv)
+          run_single(obj.rhs, obj.tenv)
 
         when Clarke::Nodes::FunCall
           obj.tenv = parent_env
+          obj.args.each do |arg|
+            run_single(arg, obj.tenv)
+          end
 
         when Clarke::Nodes::If
-          obj.tenv = parent_env
+          obj.tenv = parent_env.push
+          run_single(obj.condition, obj.tenv)
+          true_env = obj.tenv.push
+          obj.true_clause.each { |e| run_single(e, true_env) }
+          false_env = obj.tenv.push
+          obj.false_clause.each { |e| run_single(e, false_env) }
+
+        else
+          raise '???'
 
         end
       end
@@ -63,12 +73,17 @@ module Clarke
 
         arr.replace(stmts)
 
-        arr << FunDef.new('main', [], Int32Type.instance, exprs)
+        main = FunDef.new('main', [], Int32Type.instance, exprs).tap do |fun_decl|
+          fun_decl.tenv = env
+        end
+
+        arr << main
+        env['main'] = main
       end
     end
 
     class LiftFunDecls < Generic
-      def run(arr)
+      def run(arr, env)
         fun_decls = []
         fun_defs = []
         others = []
@@ -89,19 +104,25 @@ module Clarke
             when Clarke::Nodes::FunDecl
               e
             when Clarke::Nodes::FunDef
-              FunDecl.new(e.name, e.params.map(&:type), false, e.return_type)
+              FunDecl.new(e.name, e.params.map(&:type), false, e.return_type).tap do |fun_decl|
+                fun_decl.tenv = env
+              end
             else
               raise '???'
             end
           end
 
         arr.replace(new_fun_decls + fun_defs + others)
+
+        new_fun_decls.each do |e|
+          env[e.name] = e
+        end
       end
     end
 
     class Typecheck < Generic
-      def run(arr, env)
-        arr.each { |e| e.typecheck(env: env) }
+      def run(arr)
+        arr.each { |e| e.typecheck }
       end
     end
 

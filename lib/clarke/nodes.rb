@@ -15,10 +15,14 @@ module Clarke
     module Node
       attr_accessor :tenv
 
-      def typecheck(env:)
+      def typecheck
       end
 
       def gen_code(mod:, function:, builder:, env:)
+      end
+
+      def inspect
+        tenv.inspect + ':' + super
       end
     end
 
@@ -69,13 +73,8 @@ module Clarke
         LLVMBuildRet(builder, tmp)
       end
 
-      def typecheck(env:)
-        new_env = env.push
-        params.each do |par|
-          new_env[par.name] = par
-        end
-
-        raise 'last expr of function is not int32' unless body.last.typecheck(env: new_env) == Int32Type.instance
+      def typecheck
+        raise 'last expr of function is not int32' unless body.last.typecheck == Int32Type.instance
       end
     end
 
@@ -88,7 +87,7 @@ module Clarke
         LLVMConstInt(type.gen_code(mod: mod), value, 0)
       end
 
-      def typecheck(env:)
+      def typecheck
         type
       end
     end
@@ -100,7 +99,7 @@ module Clarke
         LLVMBuildGlobalStringPtr(builder, value, 'str')
       end
 
-      def typecheck(env:)
+      def typecheck
         StringType.instance
       end
     end
@@ -112,8 +111,8 @@ module Clarke
         env.fetch(name)
       end
 
-      def typecheck(env:)
-        env.fetch(name).type
+      def typecheck
+        tenv.fetch(name).type
       end
     end
 
@@ -129,9 +128,9 @@ module Clarke
         )
       end
 
-      def typecheck(env:)
-        raise "type error: lhs is not int32" unless lhs.typecheck(env: env) == Int32Type.instance
-        raise "type error: rhs is not int32" unless rhs.typecheck(env: env) == Int32Type.instance
+      def typecheck
+        raise "type error: lhs is not int32" unless lhs.typecheck == Int32Type.instance
+        raise "type error: rhs is not int32" unless rhs.typecheck == Int32Type.instance
         Int32Type.instance
       end
     end
@@ -144,8 +143,8 @@ module Clarke
         LLVMBuildCall(builder, env.fetch(name), args_ptr, args.size, "call_#{name}_res")
       end
 
-      def typecheck(env:)
-        env.fetch(name).return_type
+      def typecheck
+        tenv.fetch(name).return_type
       end
     end
 
@@ -182,9 +181,9 @@ module Clarke
         res
       end
 
-      def typecheck(env:)
-        raise "type error: true clause is not int32" unless true_clause.last.typecheck(env: env) == Int32Type.instance
-        raise "type error: false clause is not int32" unless false_clause.last.typecheck(env: env) == Int32Type.instance
+      def typecheck
+        raise "type error: true clause is not int32" unless true_clause.last.typecheck == Int32Type.instance
+        raise "type error: false clause is not int32" unless false_clause.last.typecheck == Int32Type.instance
         Int32Type.instance
       end
     end

@@ -24,5 +24,14 @@ module Clarke
     def push(contents = {})
       self.class.new(parent: self, contents: contents)
     end
+
+    def inspect(wrapped: true)
+      s = ''
+      s << 'Env(' if wrapped
+      s << @contents.map { |k, _| k + ' ' }.join('')
+      s << @parent.inspect(wrapped: false) if @parent
+      s << ')' if wrapped
+      s
+    end
   end
 end
