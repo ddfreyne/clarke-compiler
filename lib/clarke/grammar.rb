@@ -182,6 +182,18 @@ module Clarke
         )
       end
 
+    EXPRESSIONS =
+      alt(
+        lazy { EXPRESSION }.map { |d| [d] },
+        seq(
+          string('{').ignore,
+          WHITESPACE0.ignore,
+          repeat1(lazy { EXPRESSION }),
+          WHITESPACE0.ignore,
+          string('}').ignore,
+        ).compact.first,
+      )
+
     FUN_DEF =
       seq(
         string('def').ignore,
@@ -205,11 +217,9 @@ module Clarke
         WHITESPACE0.ignore,
         TYPE,
         WHITESPACE0.ignore,
-        string('{').ignore,
+        string('=').ignore,
         WHITESPACE0.ignore,
-        repeat1(lazy { EXPRESSION }),
-        WHITESPACE0.ignore,
-        string('}').ignore,
+        EXPRESSIONS,
       ).compact.map do |data|
         Clarke::Nodes::FunDef.new(data[0], data[1], data[2], data[3])
       end
