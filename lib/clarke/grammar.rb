@@ -206,7 +206,9 @@ module Clarke
         TYPE,
         WHITESPACE0.ignore,
         string('{').ignore,
+        WHITESPACE0.ignore,
         repeat1(lazy { EXPRESSION }),
+        WHITESPACE0.ignore,
         string('}').ignore,
       ).compact.map do |data|
         Clarke::Nodes::FunDef.new(data[0], data[1], data[2], data[3])

@@ -4,10 +4,10 @@ program =
 <<-EOS
 decl printf(string, ...): int32
 
-def add(a: int32, b: int32): int32 {a+b}
-def sub(a: int32, b: int32): int32 {a-b}
-def mul(a: int32, b: int32): int32 {a*b}
-def div(a: int32, b: int32): int32 {a/b}
+def add(a: int32, b: int32): int32 { a + b }
+def sub(a: int32, b: int32): int32 { a - b }
+def mul(a: int32, b: int32): int32 { a * b }
+def div(a: int32, b: int32): int32 { a / b }
 
 printf("Add: %d\n", add(7, 3))
 printf("Sub: %d\n", sub(7, 3))
