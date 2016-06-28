@@ -211,14 +211,50 @@ module Clarke
         Clarke::Nodes::FunDef.new(data[0], data[1], data[2], data[3])
       end
 
-    EXPRESSION =
+    OPERATOR =
       alt(
+        # char('^'),
+        # char('*'),
+        # char('/'),
+        char('+'),
+        # char('-'),
+        # string('=='),
+        # string('>='),
+        # string('>'),
+        # string('<='),
+        # string('<'),
+        # string('&&'),
+        # string('||'),
+      ).capture.map { |d| Clarke::Nodes::Op.new(d) }
+
+    # TRUE =
+    #   string('true').map { |_| Clarke::AST::TrueLiteral }
+    #
+    # FALSE =
+    #   string('false').map { |_| Clarke::AST::FalseLiteral }
+
+    OPERAND =
+      alt(
+        # TRUE,
+        # FALSE,
         FUN_CALL,
         NUMBER,
         STRING,
         IF,
         VAR_REF,
       )
+
+    EXPRESSION =
+      intersperse(
+        OPERAND,
+        seq(
+          WHITESPACE0.ignore,
+          OPERATOR,
+          WHITESPACE0.ignore,
+        ).compact.first,
+      ).map do |data|
+        Clarke::Nodes::OpSeq.new(data)
+      end
 
     STATEMENT =
       alt(

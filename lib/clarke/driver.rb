@@ -9,6 +9,9 @@ module Clarke
       log('  phase: lift_fun_decls')
       Clarke::Phases::LiftFunDecls.new.run(things)
 
+      log('  phase: simplify_op_seq')
+      Clarke::Phases::SimplifyOpSeq.new.run(things)
+
       log('  phase: build_env')
       env = Clarke::Phases::BuildEnv.new.run(things)
 

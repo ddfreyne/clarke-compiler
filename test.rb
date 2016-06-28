@@ -7,7 +7,7 @@ Clarke::Driver.new.run(
 <<-EOS
 decl printf(string, ...): int32
 def sum(a: int32, b: int32): int32 {if(0) {222}else{333}}
-printf("hello there!!!\n")
+printf("hello there!!!\n") + 4
 EOS
   ).data,
 )

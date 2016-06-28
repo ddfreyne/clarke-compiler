@@ -69,6 +69,12 @@ module Clarke
 
     ### expressions
 
+    Op = Struct.new(:name) do
+    end
+
+    OpSeq = Struct.new(:seq) do
+    end
+
     Const = Struct.new(:value, :type) do
       include Node
 
