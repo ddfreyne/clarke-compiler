@@ -1,6 +1,8 @@
 module Clarke
   module Phases
     class Generic
+      include Clarke::Nodes
+      
       def run(arr, mod, env)
         raise '???'
       end
@@ -142,6 +144,12 @@ module Clarke
               case r.name
               when '+'
                 stack << Clarke::Nodes::OpAdd.new(*es)
+              when '-'
+                stack << Clarke::Nodes::OpSub.new(*es)
+              when '*'
+                stack << Clarke::Nodes::OpMul.new(*es)
+              when '-'
+                stack << Clarke::Nodes::OpDiv.new(*es)
               else
                 raise "Don’t know how to handle op #{r.name}"
               end
@@ -268,7 +276,7 @@ module Clarke
         when VarRef
           obj.env.fetch(obj.name).type
 
-        when OpAdd
+        when OpAdd, OpSub, OpDiv, OpMul
           unless run_single(obj.lhs) == Int32Type.instance
             raise "type error: lhs is not int32"
           end

@@ -3,6 +3,7 @@ require 'd-parse'
 module Clarke
   module Grammar
     extend DParse::DSL
+    include Clarke::Nodes
 
     def self.repeat1(a)
       seq(a, repeat(a)).map { |d| [d[0]] + d[1] }
@@ -214,10 +215,10 @@ module Clarke
     OPERATOR =
       alt(
         # char('^'),
-        # char('*'),
-        # char('/'),
+        char('*'),
+        char('/'),
         char('+'),
-        # char('-'),
+        char('-'),
         # string('=='),
         # string('>='),
         # string('>'),

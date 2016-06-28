@@ -112,6 +112,11 @@ module Clarke
       end
     end
 
+    # TODO: implement #gen_code
+    OpSub = Struct.new(:lhs, :rhs)
+    OpMul = Struct.new(:lhs, :rhs)
+    OpDiv = Struct.new(:lhs, :rhs)
+
     FunCall = Struct.new(:name, :args) do
       include Node
 
