@@ -112,10 +112,44 @@ module Clarke
       end
     end
 
-    # TODO: implement #gen_code
-    OpSub = Struct.new(:lhs, :rhs)
-    OpMul = Struct.new(:lhs, :rhs)
-    OpDiv = Struct.new(:lhs, :rhs)
+    OpSub = Struct.new(:lhs, :rhs) do
+      include Node
+
+      def gen_code(mod:, function:, builder:, env:)
+        LLVMBuildSub(
+          builder,
+          lhs.gen_code(mod: mod, function: function, builder: builder, env: env),
+          rhs.gen_code(mod: mod, function: function, builder: builder, env: env),
+          "op_add_res",
+        )
+      end
+    end
+
+    OpMul = Struct.new(:lhs, :rhs) do
+      include Node
+
+      def gen_code(mod:, function:, builder:, env:)
+        LLVMBuildMul(
+          builder,
+          lhs.gen_code(mod: mod, function: function, builder: builder, env: env),
+          rhs.gen_code(mod: mod, function: function, builder: builder, env: env),
+          "op_add_res",
+        )
+      end
+    end
+
+    OpDiv = Struct.new(:lhs, :rhs) do
+      include Node
+
+      def gen_code(mod:, function:, builder:, env:)
+        LLVMBuildUDiv(
+          builder,
+          lhs.gen_code(mod: mod, function: function, builder: builder, env: env),
+          rhs.gen_code(mod: mod, function: function, builder: builder, env: env),
+          "op_add_res",
+        )
+      end
+    end
 
     FunCall = Struct.new(:name, :args) do
       include Node

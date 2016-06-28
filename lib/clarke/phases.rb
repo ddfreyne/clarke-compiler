@@ -2,7 +2,7 @@ module Clarke
   module Phases
     class Generic
       include Clarke::Nodes
-      
+
       def run(arr, mod, env)
         raise '???'
       end
@@ -39,7 +39,11 @@ module Clarke
         when Clarke::Nodes::VarRef
           obj.env = parent_env
 
-        when Clarke::Nodes::OpAdd
+        when
+          Clarke::Nodes::OpAdd,
+          Clarke::Nodes::OpSub,
+          Clarke::Nodes::OpMul,
+          Clarke::Nodes::OpDiv
           obj.env = parent_env
           run_single(obj.lhs, obj.env)
           run_single(obj.rhs, obj.env)
@@ -68,10 +72,10 @@ module Clarke
     class SimplifyOpSeq < Generic
       PRECEDENCES = {
         # '^' => 3,
-        # '*' => 2,
-        # '/' => 2,
+        '*' => 2,
+        '/' => 2,
         '+' => 1,
-        # '-' => 1,
+        '-' => 1,
         # '&&' => 0,
         # '||' => 0,
         # '==' => 0,
@@ -83,10 +87,10 @@ module Clarke
 
       ASSOCIATIVITIES = {
         # '^' => :right,
-        # '*' => :left,
-        # '/' => :left,
+        '*' => :left,
+        '/' => :left,
         '+' => :left,
-        # '-' => :left,
+        '-' => :left,
         # '==' => :left,
         # '>'  => :left,
         # '<'  => :left,
@@ -148,7 +152,7 @@ module Clarke
                 stack << Clarke::Nodes::OpSub.new(*es)
               when '*'
                 stack << Clarke::Nodes::OpMul.new(*es)
-              when '-'
+              when '/'
                 stack << Clarke::Nodes::OpDiv.new(*es)
               else
                 raise "Don’t know how to handle op #{r.name}"
